@@ -246,8 +246,7 @@ def compile_project(target_name=None, watch=False, patch=False, no_project_file=
         return state.compileproc
     else:
         if no_project_file:
-            cmd.append('--noproject')
-            #TODO [montonero] add option to copy assets w/o generating project file
+            cmd.append('--onlydata')
         print("Running:\n", cmd)
         return subprocess.Popen(cmd)
 
