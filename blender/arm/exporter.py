@@ -289,33 +289,33 @@ class ArmoryExporter:
             return AnimationTypeBezier
         return AnimationTypeSampled
 
-    @staticmethod
-    def animation_keys_different(fcurve):
-        key_count = len(fcurve.keyframe_points)
-        if key_count > 0:
-            key1 = fcurve.keyframe_points[0].co[1]
-            for i in range(1, key_count):
-                key2 = fcurve.keyframe_points[i].co[1]
-                if math.fabs(key2 - key1) > ExportEpsilon:
-                    return True
-        return False
+    # @staticmethod
+    # def animation_keys_different(fcurve):
+    #     key_count = len(fcurve.keyframe_points)
+    #     if key_count > 0:
+    #         key1 = fcurve.keyframe_points[0].co[1]
+    #         for i in range(1, key_count):
+    #             key2 = fcurve.keyframe_points[i].co[1]
+    #             if math.fabs(key2 - key1) > ExportEpsilon:
+    #                 return True
+    #     return False
 
-    @staticmethod
-    def animation_tangents_nonzero(fcurve):
-        key_count = len(fcurve.keyframe_points)
-        if key_count > 0:
-            key = fcurve.keyframe_points[0].co[1]
-            left = fcurve.keyframe_points[0].handle_left[1]
-            right = fcurve.keyframe_points[0].handle_right[1]
-            if (math.fabs(key - left) > ExportEpsilon) or (math.fabs(right - key) > ExportEpsilon):
-                return True
-            for i in range(1, key_count):
-                key = fcurve.keyframe_points[i].co[1]
-                left = fcurve.keyframe_points[i].handle_left[1]
-                right = fcurve.keyframe_points[i].handle_right[1]
-                if (math.fabs(key - left) > ExportEpsilon) or (math.fabs(right - key) > ExportEpsilon):
-                    return True
-        return False
+    # @staticmethod
+    # def animation_tangents_nonzero(fcurve):
+    #     key_count = len(fcurve.keyframe_points)
+    #     if key_count > 0:
+    #         key = fcurve.keyframe_points[0].co[1]
+    #         left = fcurve.keyframe_points[0].handle_left[1]
+    #         right = fcurve.keyframe_points[0].handle_right[1]
+    #         if (math.fabs(key - left) > ExportEpsilon) or (math.fabs(right - key) > ExportEpsilon):
+    #             return True
+    #         for i in range(1, key_count):
+    #             key = fcurve.keyframe_points[i].co[1]
+    #             left = fcurve.keyframe_points[i].handle_left[1]
+    #             right = fcurve.keyframe_points[i].handle_right[1]
+    #             if (math.fabs(key - left) > ExportEpsilon) or (math.fabs(right - key) > ExportEpsilon):
+    #                 return True
+    #     return False
 
     @staticmethod
     def matrices_different(m1, m2):
@@ -338,11 +338,11 @@ class ArmoryExporter:
                         curve_array.append(fcurve)
         return curve_array
 
-    @staticmethod
-    def animation_present(fcurve, kind):
-        if kind != AnimationTypeBezier:
-            return ArmoryExporter.animation_keys_different(fcurve)
-        return ((ArmoryExporter.animation_keys_different(fcurve)) or (ArmoryExporter.animation_tangents_nonzero(fcurve)))
+    # @staticmethod
+    # def animation_present(fcurve, kind):
+        # if kind != AnimationTypeBezier:
+            # return ArmoryExporter.animation_keys_different(fcurve)
+        # return ((ArmoryExporter.animation_keys_different(fcurve)) or (ArmoryExporter.animation_tangents_nonzero(fcurve)))
 
     @staticmethod
     def calc_tangent(v0, v1, v2, uv0, uv1, uv2):
@@ -583,15 +583,32 @@ class ArmoryExporter:
         m1 = bobject.matrix_local.copy()
 
         # Font in
-        for i in range(self.beginFrame, self.endFrame):
-            scene.frame_set(i)
-            m2 = bobject.matrix_local
-            if ArmoryExporter.matrices_different(m1, m2):
-                animationFlag = True
-                break
+        # for i in range(self.beginFrame, self.endFrame):
+        #     scene.frame_set(i)
+        #     m2 = bobject.matrix_local
+        #     if ArmoryExporter.matrices_different(m1, m2):
+        #         animationFlag = True
+        #         break
+        animationFlag = bobject.animation_data != None and bobject.animation_data.action != None and bobject.type != 'ARMATURE'
+
         # Font out
         if animationFlag:
-            o['animation'] = {}
+
+            if not 'object_actions' in o:
+                o['object_actions'] = []
+
+            action = bobject.animation_data.action
+            aname = arm.utils.safestr(arm.utils.asset_name(action))
+            fp = self.get_meshes_file_path('action_' + aname, compressed=self.is_compress(bobject.data))
+            assets.add(fp)
+            ext = '.zip' if self.is_compress(bobject.data) else ''
+            o['object_actions'].append('action_' + aname + ext)
+
+            oaction = {}
+            oaction['sampled'] = True
+            oaction['name'] = action.name
+            oanim = {}
+            oaction['anim'] = oanim
 
             tracko = {}
             tracko['target'] = "transform"
@@ -611,7 +628,18 @@ class ArmoryExporter:
 
             scene.frame_set(self.endFrame)
             tracko['values'] += self.write_matrix(bobject.matrix_local)
-            o['animation']['tracks'] = [tracko]
+            oanim['tracks'] = [tracko]
+
+            if True: #action.arm_cached == False or not os.path.exists(fp):
+                print('Exporting object action ' + aname)
+                actionf = {}
+                actionf['objects'] = []
+                actionf['objects'].append(oaction)
+                oaction['type'] = 'object'
+                oaction['name'] = aname
+                oaction['data_ref'] = ''
+                oaction['transform'] = []
+                arm.utils.write_arm(fp, actionf)
 
         scene.frame_set(currentFrame, currentSubframe)
 
@@ -643,7 +671,7 @@ class ArmoryExporter:
                 break
 
         if animationFlag:
-            o['animation'] = {}
+            o['anim'] = {}
             tracko = {}
             tracko['target'] = "transform"
             tracko['times'] = []
@@ -665,7 +693,7 @@ class ArmoryExporter:
                 for i in range(begin_frame, end_frame + 1):
                     scene.frame_set(i)
                     tracko['values'] += self.write_matrix(poseBone.matrix)
-            o['animation']['tracks'] = [tracko]
+            o['anim']['tracks'] = [tracko]
 
         scene.frame_set(currentFrame, currentSubframe)
 
@@ -759,15 +787,10 @@ class ArmoryExporter:
         deltaSclAnimated = [False, False, False]
 
         mode = bobject.rotation_mode
-        sampledAnimation = (ArmoryExporter.sample_animation_flag or mode == "QUATERNION" or mode == "AXIS_ANGLE")
+        sampledAnimation = ArmoryExporter.sample_animation_flag or mode == "QUATERNION" or mode == "AXIS_ANGLE"
 
-        if (not sampledAnimation) and (bobject.animation_data):
+        if not sampledAnimation and bobject.animation_data and bobject.type != 'ARMATURE':
             action = bobject.animation_data.action
-
-            # TODO: Collect all strips
-            # action = bpy.data.objects['Gate'].animation_data.nla_tracks[0].strips[0]
-            # bpy.data.objects['Gate'].animation_data.nla_tracks["[Action Stash]"].strips["GateActionOpen"]
-
             if action:
                 for fcurve in action.fcurves:
                     kind = ArmoryExporter.classify_animation_curve(fcurve)
@@ -777,43 +800,43 @@ class ArmoryExporter:
                                 if (fcurve.array_index == i) and (not locAnimCurve[i]):
                                     locAnimCurve[i] = fcurve
                                     locAnimKind[i] = kind
-                                    if ArmoryExporter.animation_present(fcurve, kind):
-                                        locAnimated[i] = True
+                                    # if ArmoryExporter.animation_present(fcurve, kind):
+                                    locAnimated[i] = True
                         elif fcurve.data_path == "delta_location":
                             for i in range(3):
                                 if (fcurve.array_index == i) and (not deltaPosAnimCurve[i]):
                                     deltaPosAnimCurve[i] = fcurve
                                     deltaPosAnimKind[i] = kind
-                                    if ArmoryExporter.animation_present(fcurve, kind):
-                                        deltaPosAnimated[i] = True
+                                    # if ArmoryExporter.animation_present(fcurve, kind):
+                                    deltaPosAnimated[i] = True
                         elif fcurve.data_path == "rotation_euler":
                             for i in range(3):
                                 if (fcurve.array_index == i) and (not rotAnimCurve[i]):
                                     rotAnimCurve[i] = fcurve
                                     rotAnimKind[i] = kind
-                                    if ArmoryExporter.animation_present(fcurve, kind):
-                                        rotAnimated[i] = True
+                                    # if ArmoryExporter.animation_present(fcurve, kind):
+                                    rotAnimated[i] = True
                         elif fcurve.data_path == "delta_rotation_euler":
                             for i in range(3):
                                 if (fcurve.array_index == i) and (not deltaRotAnimCurve[i]):
                                     deltaRotAnimCurve[i] = fcurve
                                     deltaRotAnimKind[i] = kind
-                                    if ArmoryExporter.animation_present(fcurve, kind):
-                                        deltaRotAnimated[i] = True
+                                    # if ArmoryExporter.animation_present(fcurve, kind):
+                                    deltaRotAnimated[i] = True
                         elif fcurve.data_path == "scale":
                             for i in range(3):
                                 if (fcurve.array_index == i) and (not sclAnimCurve[i]):
                                     sclAnimCurve[i] = fcurve
                                     sclAnimKind[i] = kind
-                                    if ArmoryExporter.animation_present(fcurve, kind):
-                                        sclAnimated[i] = True
+                                    # if ArmoryExporter.animation_present(fcurve, kind):
+                                    sclAnimated[i] = True
                         elif fcurve.data_path == "delta_scale":
                             for i in range(3):
                                 if (fcurve.array_index == i) and (not deltaSclAnimCurve[i]):
                                     deltaSclAnimCurve[i] = fcurve
                                     deltaSclAnimKind[i] = kind
-                                    if ArmoryExporter.animation_present(fcurve, kind):
-                                        deltaSclAnimated[i] = True
+                                    # if ArmoryExporter.animation_present(fcurve, kind):
+                                    deltaSclAnimated[i] = True
                         elif (fcurve.data_path == "rotation_axis_angle") or (fcurve.data_path == "rotation_quaternion") or (fcurve.data_path == "delta_rotation_quaternion"):
                             sampledAnimation = True
                             break
@@ -841,238 +864,265 @@ class ArmoryExporter:
 
             if sampledAnimation:
                 self.export_object_sampled_animation(bobject, scene, o)
-        else:
+        else: # Animated
             structFlag = False
 
             o['transform'] = {}
             o['transform']['values'] = self.write_matrix(bobject.matrix_local)
 
-            o['animation_transforms'] = []
+            if not 'object_actions' in o:
+                o['object_actions'] = []
+            
+            action = bobject.animation_data.action
+            aname = arm.utils.safestr(arm.utils.asset_name(action))
+            fp = self.get_meshes_file_path('action_' + aname, compressed=self.is_compress(bobject.data))
+            assets.add(fp)
+            ext = '.zip' if self.is_compress(bobject.data) else ''
+            o['object_actions'].append('action_' + aname + ext)
 
-            deltaTranslation = bobject.delta_location
-            if deltaPositionAnimated:
-                # When the delta location is animated, write the x, y, and z components separately
-                # so they can be targeted by different tracks having different sets of keys.
-                for i in range(3):
-                    pos = deltaTranslation[i]
-                    if (deltaPosAnimated[i]) or (math.fabs(pos) > ExportEpsilon):
-                        animo = {}
-                        o['animation_transforms'].append(animo)
-                        animo['type'] = 'translation_' + axisName[i]
-                        animo['name'] = deltaSubtranslationName[i]
-                        animo['value'] = pos
-                        # self.IndentWrite(B"Translation %", 0, structFlag)
-                        # self.Write(deltaSubtranslationName[i])
-                        # self.Write(B" (kind = \"")
-                        # self.Write(axisName[i])
-                        # self.Write(B"\")\n")
-                        # self.IndentWrite(B"{\n")
-                        # self.IndentWrite(B"float {", 1)
-                        # self.WriteFloat(pos)
-                        # self.Write(B"}")
-                        # self.IndentWrite(B"}\n", 0, True)
-                        structFlag = True
+            oaction = {}
+            oaction['name'] = action.name
+            # oaction['transforms'] = []
 
-            elif (math.fabs(deltaTranslation[0]) > ExportEpsilon) or (math.fabs(deltaTranslation[1]) > ExportEpsilon) or (math.fabs(deltaTranslation[2]) > ExportEpsilon):
-                animo = {}
-                o['animation_transforms'].append(animo)
-                animo['type'] = 'translation'
-                animo['values'] = self.write_vector3d(deltaTranslation)
-                structFlag = True
+            # deltaTranslation = bobject.delta_location
+            # if deltaPositionAnimated:
+            #     # When the delta location is animated, write the x, y, and z components separately
+            #     # so they can be targeted by different tracks having different sets of keys.
+            #     for i in range(3):
+            #         pos = deltaTranslation[i]
+            #         if (deltaPosAnimated[i]) or (math.fabs(pos) > ExportEpsilon):
+            #             animo = {}
+            #             oaction['transforms'].append(animo)
+            #             animo['type'] = 'translation_' + axisName[i]
+            #             animo['name'] = deltaSubtranslationName[i]
+            #             animo['value'] = pos
+            #             # self.IndentWrite(B"Translation %", 0, structFlag)
+            #             # self.Write(deltaSubtranslationName[i])
+            #             # self.Write(B" (kind = \"")
+            #             # self.Write(axisName[i])
+            #             # self.Write(B"\")\n")
+            #             # self.IndentWrite(B"{\n")
+            #             # self.IndentWrite(B"float {", 1)
+            #             # self.WriteFloat(pos)
+            #             # self.Write(B"}")
+            #             # self.IndentWrite(B"}\n", 0, True)
+            #             structFlag = True
 
-            translation = bobject.location
-            if locationAnimated:
-                # When the location is animated, write the x, y, and z components separately
-                # so they can be targeted by different tracks having different sets of keys.
-                for i in range(3):
-                    pos = translation[i]
-                    if (locAnimated[i]) or (math.fabs(pos) > ExportEpsilon):
-                        animo = {}
-                        o['animation_transforms'].append(animo)
-                        animo['type'] = 'translation_' + axisName[i]
-                        animo['name'] = subtranslationName[i]
-                        animo['value'] = pos
-                        structFlag = True
+            # elif (math.fabs(deltaTranslation[0]) > ExportEpsilon) or (math.fabs(deltaTranslation[1]) > ExportEpsilon) or (math.fabs(deltaTranslation[2]) > ExportEpsilon):
+            #     animo = {}
+            #     oaction['transforms'].append(animo)
+            #     animo['type'] = 'translation'
+            #     animo['values'] = self.write_vector3d(deltaTranslation)
+            #     structFlag = True
 
-            elif (math.fabs(translation[0]) > ExportEpsilon) or (math.fabs(translation[1]) > ExportEpsilon) or (math.fabs(translation[2]) > ExportEpsilon):
-                animo = {}
-                o['animation_transforms'].append(animo)
-                animo['type'] = 'translation'
-                animo['values'] = self.write_vector3d(translation)
-                structFlag = True
+            # translation = bobject.location
+            # if locationAnimated:
+            #     # When the location is animated, write the x, y, and z components separately
+            #     # so they can be targeted by different tracks having different sets of keys.
+            #     for i in range(3):
+            #         pos = translation[i]
+            #         if (locAnimated[i]) or (math.fabs(pos) > ExportEpsilon):
+            #             animo = {}
+            #             oaction['transforms'].append(animo)
+            #             animo['type'] = 'translation_' + axisName[i]
+            #             animo['name'] = subtranslationName[i]
+            #             animo['value'] = pos
+            #             structFlag = True
 
-            if deltaRotationAnimated:
-                # When the delta rotation is animated, write three separate Euler angle rotations
-                # so they can be targeted by different tracks having different sets of keys.
-                for i in range(3):
-                    axis = ord(mode[2 - i]) - 0x58
-                    angle = bobject.delta_rotation_euler[axis]
-                    if (deltaRotAnimated[axis]) or (math.fabs(angle) > ExportEpsilon):
-                        animo = {}
-                        o['animation_transforms'].append(animo)
-                        animo['type'] = 'rotation_' + axisName[axis]
-                        animo['name'] = deltaSubrotationName[axis]
-                        animo['value'] = angle
-                        structFlag = True
+            # elif (math.fabs(translation[0]) > ExportEpsilon) or (math.fabs(translation[1]) > ExportEpsilon) or (math.fabs(translation[2]) > ExportEpsilon):
+            #     animo = {}
+            #     oaction['transforms'].append(animo)
+            #     animo['type'] = 'translation'
+            #     animo['values'] = self.write_vector3d(translation)
+            #     structFlag = True
 
-            else:
-                # When the delta rotation is not animated, write it in the representation given by
-                # the object's current rotation mode. (There is no axis-angle delta rotation.)
-                if mode == "QUATERNION":
-                    quaternion = bobject.delta_rotation_quaternion
-                    if (math.fabs(quaternion[0] - 1.0) > ExportEpsilon) or (math.fabs(quaternion[1]) > ExportEpsilon) or (math.fabs(quaternion[2]) > ExportEpsilon) or (math.fabs(quaternion[3]) > ExportEpsilon):
-                        animo = {}
-                        o['animation_transforms'].append(animo)
-                        animo['type'] = 'rotation_quaternion'
-                        animo['values'] = self.WriteQuaternion(quaternion)
-                        structFlag = True
+            # if deltaRotationAnimated:
+            #     # When the delta rotation is animated, write three separate Euler angle rotations
+            #     # so they can be targeted by different tracks having different sets of keys.
+            #     for i in range(3):
+            #         axis = ord(mode[2 - i]) - 0x58
+            #         angle = bobject.delta_rotation_euler[axis]
+            #         if (deltaRotAnimated[axis]) or (math.fabs(angle) > ExportEpsilon):
+            #             animo = {}
+            #             oaction['transforms'].append(animo)
+            #             animo['type'] = 'rotation_' + axisName[axis]
+            #             animo['name'] = deltaSubrotationName[axis]
+            #             animo['value'] = angle
+            #             structFlag = True
 
-                else:
-                    for i in range(3):
-                        axis = ord(mode[2 - i]) - 0x58
-                        angle = bobject.delta_rotation_euler[axis]
-                        if math.fabs(angle) > ExportEpsilon:
-                            animo = {}
-                            o['animation_transforms'].append(animo)
-                            animo['type'] = 'rotation_' + axisName[axis]
-                            animo['value'] = angle
-                            structFlag = True
+            # else:
+            #     # When the delta rotation is not animated, write it in the representation given by
+            #     # the object's current rotation mode. (There is no axis-angle delta rotation.)
+            #     if mode == "QUATERNION":
+            #         quaternion = bobject.delta_rotation_quaternion
+            #         if (math.fabs(quaternion[0] - 1.0) > ExportEpsilon) or (math.fabs(quaternion[1]) > ExportEpsilon) or (math.fabs(quaternion[2]) > ExportEpsilon) or (math.fabs(quaternion[3]) > ExportEpsilon):
+            #             animo = {}
+            #             oaction['transforms'].append(animo)
+            #             animo['type'] = 'rotation_quaternion'
+            #             animo['values'] = self.WriteQuaternion(quaternion)
+            #             structFlag = True
 
-            if rotationAnimated:
-                # When the rotation is animated, write three separate Euler angle rotations
-                # so they can be targeted by different tracks having different sets of keys.
-                for i in range(3):
-                    axis = ord(mode[2 - i]) - 0x58
-                    angle = bobject.rotation_euler[axis]
-                    if (rotAnimated[axis]) or (math.fabs(angle) > ExportEpsilon):
-                        animo = {}
-                        o['animation_transforms'].append(animo)
-                        animo['type'] = 'rotation_' + axisName[axis]
-                        animo['name'] = subrotationName[axis]
-                        animo['value'] = angle
-                        structFlag = True
+            #     else:
+            #         for i in range(3):
+            #             axis = ord(mode[2 - i]) - 0x58
+            #             angle = bobject.delta_rotation_euler[axis]
+            #             if math.fabs(angle) > ExportEpsilon:
+            #                 animo = {}
+            #                 oaction['transforms'].append(animo)
+            #                 animo['type'] = 'rotation_' + axisName[axis]
+            #                 animo['value'] = angle
+            #                 structFlag = True
 
-            else:
-                # When the rotation is not animated, write it in the representation given by
-                # the object's current rotation mode.
-                if mode == "QUATERNION":
-                    quaternion = bobject.rotation_quaternion
-                    if (math.fabs(quaternion[0] - 1.0) > ExportEpsilon) or (math.fabs(quaternion[1]) > ExportEpsilon) or (math.fabs(quaternion[2]) > ExportEpsilon) or (math.fabs(quaternion[3]) > ExportEpsilon):
-                        animo = {}
-                        o['animation_transforms'].append(animo)
-                        animo['type'] = 'rotation_quaternion'
-                        animo['values'] = self.WriteQuaternion(quaternion)
-                        structFlag = True
+            # if rotationAnimated:
+            #     # When the rotation is animated, write three separate Euler angle rotations
+            #     # so they can be targeted by different tracks having different sets of keys.
+            #     for i in range(3):
+            #         axis = ord(mode[2 - i]) - 0x58
+            #         angle = bobject.rotation_euler[axis]
+            #         if (rotAnimated[axis]) or (math.fabs(angle) > ExportEpsilon):
+            #             animo = {}
+            #             oaction['transforms'].append(animo)
+            #             animo['type'] = 'rotation_' + axisName[axis]
+            #             animo['name'] = subrotationName[axis]
+            #             animo['value'] = angle
+            #             structFlag = True
 
-                elif mode == "AXIS_ANGLE":
-                    if math.fabs(bobject.rotation_axis_angle[0]) > ExportEpsilon:
-                        animo = {}
-                        o['animation_transforms'].append(animo)
-                        animo['type'] = 'rotation_axis'
-                        animo['values'] = self.WriteVector4D(bobject.rotation_axis_angle)
-                        structFlag = True
+            # else:
+            #     # When the rotation is not animated, write it in the representation given by
+            #     # the object's current rotation mode.
+            #     if mode == "QUATERNION":
+            #         quaternion = bobject.rotation_quaternion
+            #         if (math.fabs(quaternion[0] - 1.0) > ExportEpsilon) or (math.fabs(quaternion[1]) > ExportEpsilon) or (math.fabs(quaternion[2]) > ExportEpsilon) or (math.fabs(quaternion[3]) > ExportEpsilon):
+            #             animo = {}
+            #             oaction['transforms'].append(animo)
+            #             animo['type'] = 'rotation_quaternion'
+            #             animo['values'] = self.WriteQuaternion(quaternion)
+            #             structFlag = True
 
-                else:
-                    for i in range(3):
-                        axis = ord(mode[2 - i]) - 0x58
-                        angle = bobject.rotation_euler[axis]
-                        if math.fabs(angle) > ExportEpsilon:
-                            animo = {}
-                            o['animation_transforms'].append(animo)
-                            animo['type'] = 'rotation_' + axisName[axis]
-                            animo['value'] = angle
-                            structFlag = True
+            #     elif mode == "AXIS_ANGLE":
+            #         if math.fabs(bobject.rotation_axis_angle[0]) > ExportEpsilon:
+            #             animo = {}
+            #             oaction['transforms'].append(animo)
+            #             animo['type'] = 'rotation_axis'
+            #             animo['values'] = self.WriteVector4D(bobject.rotation_axis_angle)
+            #             structFlag = True
 
-            deltaScale = bobject.delta_scale
-            if deltaScaleAnimated:
-                # When the delta scale is animated, write the x, y, and z components separately
-                # so they can be targeted by different tracks having different sets of keys.
-                for i in range(3):
-                    scl = deltaScale[i]
-                    if (deltaSclAnimated[i]) or (math.fabs(scl) > ExportEpsilon):
-                        animo = {}
-                        o['animation_transforms'].append(animo)
-                        animo['type'] = 'scale_' + axisName[i]
-                        animo['name'] = deltaSubscaleName[i]
-                        animo['value'] = scl
-                        structFlag = True
+            #     else:
+            #         for i in range(3):
+            #             axis = ord(mode[2 - i]) - 0x58
+            #             angle = bobject.rotation_euler[axis]
+            #             if math.fabs(angle) > ExportEpsilon:
+            #                 animo = {}
+            #                 oaction['transforms'].append(animo)
+            #                 animo['type'] = 'rotation_' + axisName[axis]
+            #                 animo['value'] = angle
+            #                 structFlag = True
 
-            elif (math.fabs(deltaScale[0] - 1.0) > ExportEpsilon) or (math.fabs(deltaScale[1] - 1.0) > ExportEpsilon) or (math.fabs(deltaScale[2] - 1.0) > ExportEpsilon):
-                animo = {}
-                o['animation_transforms'].append(animo)
-                animo['type'] = 'scale'
-                animo['values'] = self.write_vector3d(deltaScale)
-                structFlag = True
+            # deltaScale = bobject.delta_scale
+            # if deltaScaleAnimated:
+            #     # When the delta scale is animated, write the x, y, and z components separately
+            #     # so they can be targeted by different tracks having different sets of keys.
+            #     for i in range(3):
+            #         scl = deltaScale[i]
+            #         if (deltaSclAnimated[i]) or (math.fabs(scl) > ExportEpsilon):
+            #             animo = {}
+            #             oaction['transforms'].append(animo)
+            #             animo['type'] = 'scale_' + axisName[i]
+            #             animo['name'] = deltaSubscaleName[i]
+            #             animo['value'] = scl
+            #             structFlag = True
 
-            scale = bobject.scale
-            if scaleAnimated:
-                # When the scale is animated, write the x, y, and z components separately
-                # so they can be targeted by different tracks having different sets of keys.
-                for i in range(3):
-                    scl = scale[i]
-                    if (sclAnimated[i]) or (math.fabs(scl) > ExportEpsilon):
-                        animo = {}
-                        o['animation_transforms'].append(animo)
-                        animo['type'] = 'scale_' + axisName[i]
-                        animo['name'] = subscaleName[i]
-                        animo['value'] = scl
-                        structFlag = True
+            # elif (math.fabs(deltaScale[0] - 1.0) > ExportEpsilon) or (math.fabs(deltaScale[1] - 1.0) > ExportEpsilon) or (math.fabs(deltaScale[2] - 1.0) > ExportEpsilon):
+            #     animo = {}
+            #     oaction['transforms'].append(animo)
+            #     animo['type'] = 'scale'
+            #     animo['values'] = self.write_vector3d(deltaScale)
+            #     structFlag = True
 
-            elif (math.fabs(scale[0] - 1.0) > ExportEpsilon) or (math.fabs(scale[1] - 1.0) > ExportEpsilon) or (math.fabs(scale[2] - 1.0) > ExportEpsilon):
-                animo = {}
-                o['animation_transforms'].append(animo)
-                animo['type'] = 'scale'
-                animo['values'] = self.write_vector3d(scale)
-                structFlag = True
+            # scale = bobject.scale
+            # if scaleAnimated:
+            #     # When the scale is animated, write the x, y, and z components separately
+            #     # so they can be targeted by different tracks having different sets of keys.
+            #     for i in range(3):
+            #         scl = scale[i]
+            #         if (sclAnimated[i]) or (math.fabs(scl) > ExportEpsilon):
+            #             animo = {}
+            #             oaction['transforms'].append(animo)
+            #             animo['type'] = 'scale_' + axisName[i]
+            #             animo['name'] = subscaleName[i]
+            #             animo['value'] = scl
+            #             structFlag = True
+
+            # elif (math.fabs(scale[0] - 1.0) > ExportEpsilon) or (math.fabs(scale[1] - 1.0) > ExportEpsilon) or (math.fabs(scale[2] - 1.0) > ExportEpsilon):
+            #     animo = {}
+            #     oaction['transforms'].append(animo)
+            #     animo['type'] = 'scale'
+            #     animo['values'] = self.write_vector3d(scale)
+            #     structFlag = True
 
             # Export the animation tracks
-            o['animation'] = {}
-            o['animation']['begin'] = (action.frame_range[0] - self.beginFrame)
-            o['animation']['end'] = (action.frame_range[1] - self.beginFrame)
-            o['animation']['tracks'] = []
+            oanim = {}
+            oaction['anim'] = oanim
+            oanim['begin'] = (action.frame_range[0] - self.beginFrame)
+            oanim['end'] = (action.frame_range[1] - self.beginFrame)
+            oanim['tracks'] = []
 
             if locationAnimated:
                 for i in range(3):
                     if locAnimated[i]:
                         tracko = self.export_animation_track(locAnimCurve[i], locAnimKind[i], subtranslationName[i], structFlag)
-                        o['animation']['tracks'].append(tracko)
+                        oanim['tracks'].append(tracko)
                         structFlag = True
 
             if rotationAnimated:
                 for i in range(3):
                     if rotAnimated[i]:
                         tracko = self.export_animation_track(rotAnimCurve[i], rotAnimKind[i], subrotationName[i], structFlag)
-                        o['animation']['tracks'].append(tracko)
+                        oanim['tracks'].append(tracko)
                         structFlag = True
 
             if scaleAnimated:
                 for i in range(3):
                     if sclAnimated[i]:
                         tracko = self.export_animation_track(sclAnimCurve[i], sclAnimKind[i], subscaleName[i], structFlag)
-                        o['animation']['tracks'].append(tracko)
+                        oanim['tracks'].append(tracko)
                         structFlag = True
 
             if deltaPositionAnimated:
                 for i in range(3):
                     if deltaPosAnimated[i]:
                         tracko = self.export_animation_track(deltaPosAnimCurve[i], deltaPosAnimKind[i], deltaSubtranslationName[i], structFlag)
-                        o['animation']['tracks'].append(tracko)
+                        oanim['tracks'].append(tracko)
+                        oanim['has_delta'] = True
                         structFlag = True
 
             if deltaRotationAnimated:
                 for i in range(3):
                     if deltaRotAnimated[i]:
                         tracko = self.export_animation_track(deltaRotAnimCurve[i], deltaRotAnimKind[i], deltaSubrotationName[i], structFlag)
-                        o['animation']['tracks'].append(tracko)
+                        oanim['tracks'].append(tracko)
+                        oanim['has_delta'] = True
                         structFlag = True
 
             if deltaScaleAnimated:
                 for i in range(3):
                     if deltaSclAnimated[i]:
                         tracko = self.export_animation_track(deltaSclAnimCurve[i], deltaSclAnimKind[i], deltaSubscaleName[i], structFlag)
-                        o['animation']['tracks'].append(tracko)
+                        oanim['tracks'].append(tracko)
+                        oanim['has_delta'] = True
                         structFlag = True
             
+            if True: #action.arm_cached == False or not os.path.exists(fp):
+                print('Exporting object action ' + aname)
+                actionf = {}
+                actionf['objects'] = []
+                actionf['objects'].append(oaction)
+                oaction['type'] = 'object'
+                oaction['name'] = aname
+                oaction['data_ref'] = ''
+                oaction['transform'] = []
+                arm.utils.write_arm(fp, actionf)
+
     def process_bone(self, bone):
         if ArmoryExporter.export_all_flag or bone.select:
             self.bobjectArray[bone] = {"objectType" : NodeTypeBone, "structName" : bone.name}
@@ -1372,7 +1422,25 @@ class ArmoryExporter:
                 o['transform']['values'] = self.write_matrix(poseBone.matrix.inverted())
 
             # Export the transform. If object is animated, then animation tracks are exported here
-            self.export_object_transform(bobject, scene, o)
+            if bobject.type != 'ARMATURE' and bobject.animation_data and bobject.animation_data.action:
+                action = bobject.animation_data.action
+                export_actions = [action]
+                for track in bobject.animation_data.nla_tracks:
+                    if track.strips == None:
+                        continue
+                    for strip in track.strips:
+                        if strip.action == None:
+                            continue
+                        if strip.action.name == action.name:
+                            continue
+                        export_actions.append(strip.action)
+                orig_action = action
+                for a in export_actions:
+                    bobject.animation_data.action = a
+                    self.export_object_transform(bobject, scene, o)
+                bobject.animation_data.action = orig_action
+            else:
+                self.export_object_transform(bobject, scene, o)
 
             # Viewport Camera - overwrite active camera matrix with viewport matrix
             if type == NodeTypeCamera and bpy.data.worlds['Arm'].arm_play_camera != 'Scene' and self.scene.camera != None and bobject.name == self.scene.camera.name:
@@ -1414,10 +1482,10 @@ class ArmoryExporter:
 
                 armatureid = arm.utils.safestr(arm.utils.asset_name(bdata))
                 ext = '.zip' if self.is_compress(bdata) else ''
-                o['action_refs'] = []
+                o['bone_actions'] = []
                 for action in export_actions:
                     aname = arm.utils.safestr(arm.utils.asset_name(action))
-                    o['action_refs'].append('action_' + armatureid + '_' + aname + ext)
+                    o['bone_actions'].append('action_' + armatureid + '_' + aname + ext)
 
                 orig_action = bobject.animation_data.action
                 for action in export_actions:
@@ -1426,7 +1494,7 @@ class ArmoryExporter:
                     fp = self.get_meshes_file_path('action_' + armatureid + '_' + aname, compressed=self.is_compress(bdata))
                     assets.add(fp)
                     if bdata.arm_cached == False or not os.path.exists(fp):
-                        print('Exporting action ' + aname)
+                        print('Exporting armature action ' + aname)
                         bones = []
                         for bone in bdata.bones:
                             if not bone.parent:
@@ -1439,6 +1507,7 @@ class ArmoryExporter:
                         action_obj['objects'] = bones
                         arm.utils.write_arm(fp, action_obj)
                 bobject.animation_data.action = orig_action
+                # TODO: cache per action
                 bdata.arm_cached = True
 
             if parento == None:
@@ -2931,6 +3000,12 @@ class ArmoryExporter:
             x['parameters'].append(str(rb.linear_damping))
             x['parameters'].append(str(rb.angular_damping))
             x['parameters'].append(str(rb.type == 'PASSIVE').lower())
+            x['parameters'].append(str(bobject.arm_rb_linear_factor[0]))
+            x['parameters'].append(str(bobject.arm_rb_linear_factor[1]))
+            x['parameters'].append(str(bobject.arm_rb_linear_factor[2]))
+            x['parameters'].append(str(bobject.arm_rb_angular_factor[0]))
+            x['parameters'].append(str(bobject.arm_rb_angular_factor[1]))
+            x['parameters'].append(str(bobject.arm_rb_angular_factor[2]))
             o['traits'].append(x)
         
         # Soft bodies modifier

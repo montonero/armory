@@ -117,6 +117,8 @@ class PhysicsPropsPanel(bpy.types.Panel):
         if obj == None:
             return
 
+        layout.prop(obj, 'arm_rb_linear_factor')
+        layout.prop(obj, 'arm_rb_angular_factor')
         layout.prop(obj, 'arm_soft_body_margin')
 
 # Menu in data region
@@ -977,17 +979,18 @@ class ArmRenderPathPanel(bpy.types.Panel):
             layout.prop(rpdat, 'rp_gi')
             if rpdat.rp_gi != 'Off':
                 layout.prop(rpdat, 'rp_voxelgi_resolution')
+                layout.prop(rpdat, 'rp_voxelgi_resolution_z')
                 layout.prop(rpdat, 'arm_voxelgi_dimensions')
                 layout.prop(rpdat, 'arm_voxelgi_revoxelize')
                 if rpdat.arm_voxelgi_revoxelize:
                     layout.prop(rpdat, 'arm_voxelgi_camera')
-                # layout.prop(rpdat, 'arm_voxelgi_multibounce')
                 # layout.prop(rpdat, 'arm_voxelgi_anisotropic')
                 layout.prop(rpdat, 'arm_voxelgi_shadows')
-                layout.prop(rpdat, 'arm_voxelgi_refraction')
-                # layout.prop(rpdat, 'rp_voxelgi_hdr')
                 if rpdat.rp_gi == 'Voxel GI':
+                    layout.prop(rpdat, 'arm_voxelgi_refraction')
                     layout.prop(rpdat, 'arm_voxelgi_emission')
+                    layout.prop(rpdat, 'rp_voxelgi_hdr')
+                    # layout.prop(rpdat, 'arm_voxelgi_multibounce')
                 layout.separator()
 
             layout.prop(rpdat, "rp_hdr")
@@ -1049,14 +1052,17 @@ class ArmRenderPropsPanel(bpy.types.Panel):
         layout.prop(wrd, 'arm_pcss_rings')
 
         layout.label('Clouds')
-        layout.prop(wrd, 'arm_clouds_density')
-        layout.prop(wrd, 'arm_clouds_size')
-        layout.prop(wrd, 'arm_clouds_lower')
-        layout.prop(wrd, 'arm_clouds_upper')
+        row = layout.row()
+        row.prop(wrd, 'arm_clouds_density')
+        row.prop(wrd, 'arm_clouds_size')
+        row = layout.row()
+        row.prop(wrd, 'arm_clouds_lower')
+        row.prop(wrd, 'arm_clouds_upper')
         layout.prop(wrd, 'arm_clouds_wind')
         layout.prop(wrd, 'arm_clouds_secondary')
-        layout.prop(wrd, 'arm_clouds_precipitation')
-        layout.prop(wrd, 'arm_clouds_eccentricity')
+        row = layout.row()
+        row.prop(wrd, 'arm_clouds_precipitation')
+        row.prop(wrd, 'arm_clouds_eccentricity')
 
         layout.label('Voxel GI')
         row = layout.row()
@@ -1065,28 +1071,38 @@ class ArmRenderPropsPanel(bpy.types.Panel):
         row = layout.row()
         row.prop(wrd, 'arm_voxelgi_occ')
         row.prop(wrd, 'arm_voxelgi_env')
-        # row = layout.row()
-        # row.prop(wrd, 'arm_voxelgi_step')
-        # row.prop(wrd, 'arm_voxelgi_range')
+        row = layout.row()
+        row.prop(wrd, 'arm_voxelgi_step')
+        row.prop(wrd, 'arm_voxelgi_range')
+        row = layout.row()
+        row.prop(wrd, 'arm_voxelgi_offset_diff')
+        row.prop(wrd, 'arm_voxelgi_offset_spec')
+        row = layout.row()
+        row.prop(wrd, 'arm_voxelgi_offset_shadow')
+        row.prop(wrd, 'arm_voxelgi_offset_refract')
         layout.prop(wrd, 'arm_voxelgi_diff_cones')
 
         layout.label('SSAO')
-        layout.prop(wrd, 'arm_ssao_size')
-        layout.prop(wrd, 'arm_ssao_strength')
+        row = layout.row()
+        row.prop(wrd, 'arm_ssao_size')
+        row.prop(wrd, 'arm_ssao_strength')
 
         layout.label('Bloom')
-        layout.prop(wrd, 'arm_bloom_threshold')
-        layout.prop(wrd, 'arm_bloom_strength')
+        row = layout.row()
+        row.prop(wrd, 'arm_bloom_threshold')
+        row.prop(wrd, 'arm_bloom_strength')
         layout.prop(wrd, 'arm_bloom_radius')
 
         layout.label('Motion Blur')
         layout.prop(wrd, 'arm_motion_blur_intensity')
 
         layout.label('SSR')
-        layout.prop(wrd, 'arm_ssr_ray_step')
-        layout.prop(wrd, 'arm_ssr_min_ray_step')
-        layout.prop(wrd, 'arm_ssr_search_dist')
-        layout.prop(wrd, 'arm_ssr_falloff_exp')
+        row = layout.row()
+        row.prop(wrd, 'arm_ssr_ray_step')
+        row.prop(wrd, 'arm_ssr_min_ray_step')
+        row = layout.row()
+        row.prop(wrd, 'arm_ssr_search_dist')
+        row.prop(wrd, 'arm_ssr_falloff_exp')
         layout.prop(wrd, 'arm_ssr_jitter')
 
         layout.label('SSS')
@@ -1106,8 +1122,9 @@ class ArmRenderPropsPanel(bpy.types.Panel):
         layout.prop(wrd, 'arm_grain_strength')
         layout.prop(wrd, 'arm_fog')
         layout.prop(wrd, 'arm_fog_color')
-        layout.prop(wrd, 'arm_fog_amounta')
-        layout.prop(wrd, 'arm_fog_amountb')
+        row = layout.row()
+        row.prop(wrd, 'arm_fog_amounta')
+        row.prop(wrd, 'arm_fog_amountb')
         layout.prop(wrd, 'arm_fisheye')
         layout.prop(wrd, 'arm_vignette')
         layout.prop(wrd, 'arm_lens_texture')
@@ -1258,8 +1275,21 @@ class ArmProxyPanel(bpy.types.Panel):
         layout = self.layout
         layout.operator("arm.make_proxy")
         obj = bpy.context.object
-        if obj.proxy != None:
-            pass
+        if obj != None and obj.proxy != None:
+            layout.label("Sync")
+            col = layout.column(align=True)
+            row = col.row(align=True)
+            row.prop(obj, "arm_proxy_sync_loc")
+            row.prop(obj, "arm_proxy_sync_rot")
+            row.prop(obj, "arm_proxy_sync_scale")
+            row = col.row(align=True)
+            row.prop(obj, "arm_proxy_sync_materials")
+            row.prop(obj, "arm_proxy_sync_modifiers")
+            row.prop(obj, "arm_proxy_sync_traits")
+            row = layout.row(align=True)
+            row.alignment = 'EXPAND'
+            row.operator("arm.proxy_toggle_all")
+            row.operator("arm.proxy_apply_all")
 
 class ArmMakeProxyButton(bpy.types.Operator):
     '''Create proxy from linked object'''
@@ -1273,6 +1303,59 @@ class ArmMakeProxyButton(bpy.types.Operator):
         if obj.library == None:
             self.report({'ERROR'}, 'Select linked object.')
         arm.proxy.make(obj)
+        return{'FINISHED'}
+
+class ArmProxyToggleAllButton(bpy.types.Operator):
+    bl_idname = 'arm.proxy_toggle_all'
+    bl_label = 'Toggle All'
+    def execute(self, context):
+        obj = context.object
+        b = not obj.arm_proxy_sync_loc
+        obj.arm_proxy_sync_loc = b
+        obj.arm_proxy_sync_rot = b
+        obj.arm_proxy_sync_scale = b
+        obj.arm_proxy_sync_materials = b
+        obj.arm_proxy_sync_modifiers = b
+        obj.arm_proxy_sync_traits = b
+        return{'FINISHED'}
+
+class ArmProxyApplyAllButton(bpy.types.Operator):
+    bl_idname = 'arm.proxy_apply_all'
+    bl_label = 'Apply to All'
+    def execute(self, context):
+        for obj in bpy.data.objects:
+            if obj.proxy == None:
+                continue
+            if obj.proxy == context.object.proxy:
+                obj.arm_proxy_sync_loc = context.object.arm_proxy_sync_loc
+                obj.arm_proxy_sync_rot = context.object.arm_proxy_sync_rot
+                obj.arm_proxy_sync_scale = context.object.arm_proxy_sync_scale
+                obj.arm_proxy_sync_materials = context.object.arm_proxy_sync_materials
+                obj.arm_proxy_sync_modifiers = context.object.arm_proxy_sync_modifiers
+                obj.arm_proxy_sync_traits = context.object.arm_proxy_sync_traits
+        return{'FINISHED'}
+
+class ArmSyncProxyButton(bpy.types.Operator):
+    bl_idname = 'arm.sync_proxy'
+    bl_label = 'Sync'
+    def execute(self, context):
+        if len(bpy.data.libraries) > 0:
+            for obj in bpy.data.objects:
+                if obj == None or obj.proxy == None:
+                    continue
+                if obj.arm_proxy_sync_loc:
+                    arm.proxy.sync_location(obj)
+                if obj.arm_proxy_sync_rot:
+                    arm.proxy.sync_rotation(obj)
+                if obj.arm_proxy_sync_scale:
+                    arm.proxy.sync_scale(obj)
+                if obj.arm_proxy_sync_materials:
+                    arm.proxy.sync_materials(obj)
+                if obj.arm_proxy_sync_modifiers:
+                    arm.proxy.sync_modifiers(obj)
+                if obj.arm_proxy_sync_traits:
+                    arm.proxy.sync_traits(obj)
+            print('Armory: Proxy objects synchronized')
         return{'FINISHED'}
 
 def register():
@@ -1318,6 +1401,9 @@ def register():
     bpy.utils.register_class(ArmTilesheetPanel)
     bpy.utils.register_class(ArmProxyPanel)
     bpy.utils.register_class(ArmMakeProxyButton)
+    bpy.utils.register_class(ArmProxyToggleAllButton)
+    bpy.utils.register_class(ArmProxyApplyAllButton)
+    bpy.utils.register_class(ArmSyncProxyButton)
 
     bpy.types.VIEW3D_HT_header.append(draw_view3d_header)
     bpy.types.INFO_HT_header.prepend(draw_info_header)
@@ -1368,3 +1454,6 @@ def unregister():
     bpy.utils.unregister_class(ArmTilesheetPanel)
     bpy.utils.unregister_class(ArmProxyPanel)
     bpy.utils.unregister_class(ArmMakeProxyButton)
+    bpy.utils.unregister_class(ArmProxyToggleAllButton)
+    bpy.utils.unregister_class(ArmProxyApplyAllButton)
+    bpy.utils.unregister_class(ArmSyncProxyButton)

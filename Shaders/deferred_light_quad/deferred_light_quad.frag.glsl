@@ -7,6 +7,9 @@ precision mediump float;
 #include "../compiled.glsl"
 #include "../std/brdf.glsl"
 #include "../std/math.glsl"
+#ifdef _VoxelGIDirect
+	#include "../std/conetrace.glsl"
+#endif
 #ifndef _NoShadows
 	#ifdef _PCSS
 	#include "../std/shadows_pcss.glsl"
@@ -21,6 +24,13 @@ precision mediump float;
 #include "../std/ssrs.glsl"
 #endif
 #include "../std/gbuffer.glsl"
+
+#ifdef _VoxelGIDirect
+	//!uniform sampler3D voxels;
+#endif
+#ifdef _VoxelGICam
+	uniform vec3 eyeSnap;
+#endif
 
 uniform sampler2D gbufferD;
 uniform sampler2D gbuffer0;
@@ -100,17 +110,27 @@ void main() {
 	}
 #endif
 
+	float dotNL = dot(n, l);
+
+#ifdef _VoxelGIShadow // #else
+	#ifdef _VoxelGICam
+	vec3 voxpos = (p - eyeSnap) / voxelgiHalfExtents;
+	#else
+	vec3 voxpos = p / voxelgiHalfExtents;
+	#endif
+	if (dotNL > 0.0) visibility = max(0, 1.0 - traceShadow(voxpos, l, 0.1, 10.0));
+#endif
+
 	// Per-light
 	// vec3 l = lightDir; // lightType == 0 // Sun
 	vec3 h = normalize(v + l);
 	float dotNH = dot(n, h);
 	float dotVH = dot(v, h);
-	float dotNL = dot(n, l);
-	// float dotLV = dot(l, v);
-	// float dotLH = dot(l, h);
 
 #ifdef _OrenNayar
-	fragColor.rgb = orenNayarDiffuseBRDF(albedo, metrough.y, dotNV, dotNL, dotVH) + specularBRDF(f0, metrough.y, dotNL, dotNH, dotNV, dotVH);
+	float facdif = min((1.0 - metrough.x) * 3.0, 1.0);
+	float facspec = min(metrough.x * 3.0, 1.0);
+	fragColor.rgb = orenNayarDiffuseBRDF(albedo, metrough.y, dotNV, dotNL, dotVH) * facdif + specularBRDF(f0, metrough.y, dotNL, dotNH, dotNV, dotVH) * facspec;
 #else
 	fragColor.rgb = lambertDiffuseBRDF(albedo, dotNL) + specularBRDF(f0, metrough.y, dotNL, dotNH, dotNV, dotVH);
 #endif
@@ -151,4 +171,13 @@ void main() {
 #endif
 
 	fragColor.rgb *= visibility;
+
+#ifdef _VoxelGIRefract
+	#ifdef _VoxelGICam
+	vec3 voxposr = (p - eyeSnap) / voxelgiHalfExtents;
+	#else
+	vec3 voxposr = p / voxelgiHalfExtents;
+	#endif
+	fragColor.rgb = mix(traceRefraction(voxposr, n, -v, metrough.y), fragColor.rgb, g1.a);
+#endif
 }

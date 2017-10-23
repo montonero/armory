@@ -9,7 +9,8 @@
 			"links": [
 				{
 					"name": "eye",
-					"link": "_cameraPosition"
+					"link": "_cameraPosition",
+					"ifdef": ["_Rad"]
 				},
 				{
 					"name": "eyeSnap",
@@ -53,6 +54,11 @@
 					"name": "sdftex",
 					"link": "_sdfTexture",
 					"ifdef": ["_DFAO"]
+				},
+				{
+					"name": "backgroundCol",
+					"link": "_backgroundCol",
+					"ifdef": ["_EnvCol"]
 				}
 			],
 			"vertex_shader": "deferred_indirect.vert.glsl",

@@ -72,7 +72,7 @@ def make_finalize(con_mesh):
             vert.add_out('vec3 eyeDir')
             vert.add_uniform('vec3 eye', '_cameraPosition')
             vert.write('eyeDir = eye - wposition;')
-        frag.prepend('vec3 vVec = normalize(eyeDir);')
+        frag.prepend_header('vec3 vVec = normalize(eyeDir);')
     
     export_wpos = False
     if frag.contains('wposition') and not frag.contains('vec3 wposition'):
@@ -227,9 +227,7 @@ def make_base(con_mesh, parse_opacity):
     else:
         vert.add_out('vec3 wnormal')
         write_norpos(con_mesh, vert)
-        frag.write_pre = True
-        frag.write_main_header('    vec3 n = normalize(wnormal);')
-        frag.write_pre = False
+        frag.prepend_header('vec3 n = normalize(wnormal);')
 
     if tese != None:
         tese.add_uniform('mat4 VP', '_viewProjectionMatrix')
@@ -351,9 +349,7 @@ def make_deferred_plus(con_mesh):
 
     vert.add_out('vec3 wnormal')
     write_norpos(con_mesh, vert)
-    frag.write_pre = True
-    frag.write_main_header('vec3 n = normalize(wnormal);')
-    frag.write_pre = False
+    frag.prepend_header('vec3 n = normalize(wnormal);')
 
     frag.add_uniform('float materialID', link='_objectInfoMaterialIndex')
 
@@ -400,9 +396,7 @@ def make_forward_mobile(con_mesh):
 
     vert.add_out('vec3 wnormal')
     write_norpos(con_mesh, vert)
-    frag.write_pre = True
-    frag.write_main_header('vec3 n = normalize(wnormal);')
-    frag.write_pre = False
+    frag.prepend_header('vec3 n = normalize(wnormal);')
 
     frag.add_include('../../Shaders/std/math.glsl')
     frag.add_include('../../Shaders/std/brdf.glsl')
@@ -446,7 +440,7 @@ def make_forward_mobile(con_mesh):
         return
 
     frag.write('vec3 direct = basecol * dotNL * lightColor;')
-    frag.write('direct += vec3(D_Approx(max(roughness, 0.3), dot(reflect(-vVec, n), lightDir)));')
+    # frag.write('direct += vec3(D_Approx(max(roughness, 0.3), dot(reflect(-vVec, n), lightDir)));')
     frag.write('direct *= attenuate(distance(wposition, lightPos));')
 
     frag.write('fragColor = vec4(direct * visibility + basecol * 0.5 * envmapStrength, 1.0);')
@@ -499,6 +493,7 @@ def make_forward(con_mesh):
     blend = mat_state.material.arm_blending
     if not blend:
         frag.add_out('vec4 fragColor')
+        frag.write('fragColor = vec4(direct * lightColor * visibility + indirect * occlusion * envmapStrength, 1.0);')
     
         if '_LDR' in wrd.world_defs:
             frag.add_include('../../Shaders/std/tonemap.glsl')

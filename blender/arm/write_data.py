@@ -142,6 +142,7 @@ project.addSources('Sources');
 
         shader_references = sorted(list(set(assets.shaders)))
         for ref in shader_references:
+            ref = ref.replace('\\', '/')
             f.write("project.addShaders('" + ref + "');\n")
 
         shader_data_references = sorted(list(set(assets.shader_datas)))
@@ -244,6 +245,14 @@ class Main {
             start();
         });
     }
+    static function loadLibAmmo(name:String) {
+        kha.LoaderImpl.loadBlobFromDescription({ files: [name] }, function(b:kha.Blob) {
+            var print = function(s:String) { trace(s); };
+            var loaded = function() { state--; start(); }
+            untyped __js__("(1, eval)({0})", b.toString());
+            untyped __js__("Ammo({print:print}).then(loaded)");
+        });
+    }
     #end""")
 
         if rpdat.rp_gi == 'Voxel GI' or rpdat.rp_gi == 'Voxel AO':
@@ -256,7 +265,7 @@ class Main {
     public static function main() {
         iron.object.BoneAnimation.skinMaxBones = """ + str(wrd.arm_skin_max_bones) + """;
         state = 1;
-        #if (js && arm_bullet) state++; loadLib("ammo.js"); #end
+        #if (js && arm_bullet) state++; loadLibAmmo("ammo.js"); #end
         #if (js && arm_navigation) state++; loadLib("recast.js"); #end
         state--; start();
     }
@@ -431,15 +440,20 @@ const float compoDOFLength = 160.0;
 """) # str(round(bpy.data.cameras[0].lens * 100) / 100)
 
         if rpdat.rp_gi == 'Voxel GI' or rpdat.rp_gi == 'Voxel AO':
+            halfext = round(rpdat.arm_voxelgi_dimensions / 2.0)
             f.write(
-"""const int voxelgiResolution = """ + str(rpdat.rp_voxelgi_resolution) + """;
-const float voxelgiHalfExtents = """ + str(round(rpdat.arm_voxelgi_dimensions / 2.0)) + """;
+"""const ivec3 voxelgiResolution = ivec3(""" + str(rpdat.rp_voxelgi_resolution) + """, """ + str(rpdat.rp_voxelgi_resolution) + """, """ + str(int(int(rpdat.rp_voxelgi_resolution) * float(rpdat.rp_voxelgi_resolution_z))) + """);
+const vec3 voxelgiHalfExtents = vec3(""" + str(halfext) + """, """ + str(halfext) + """, """ + str(round(halfext * float(rpdat.rp_voxelgi_resolution_z))) + """);
 const float voxelgiDiff = """ + str(round(wrd.arm_voxelgi_diff * 100) / 100) + """;
 const float voxelgiSpec = """ + str(round(wrd.arm_voxelgi_spec * 100) / 100) + """;
 const float voxelgiOcc = """ + str(round(wrd.arm_voxelgi_occ * 100) / 100) + """;
 const float voxelgiEnv = """ + str(round(wrd.arm_voxelgi_env * 100) / 100) + """;
 const float voxelgiStep = """ + str(round(wrd.arm_voxelgi_step * 100) / 100) + """;
 const float voxelgiRange = """ + str(round(wrd.arm_voxelgi_range * 100) / 100) + """;
+const float voxelgiOffsetDiff = """ + str(round(wrd.arm_voxelgi_offset_diff * 100) / 100) + """;
+const float voxelgiOffsetSpec = """ + str(round(wrd.arm_voxelgi_offset_spec * 100) / 100) + """;
+const float voxelgiOffsetShadow = """ + str(round(wrd.arm_voxelgi_offset_shadow * 100) / 100) + """;
+const float voxelgiOffsetRefract = """ + str(round(wrd.arm_voxelgi_offset_refract * 100) / 100) + """;
 """)
 
         if rpdat.rp_sss_state == 'On':

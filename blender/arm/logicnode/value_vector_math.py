@@ -12,12 +12,18 @@ class VectorMathNode(Node, ArmLogicTreeNode):
         items = [('Add', 'Add', 'Add'),
                  ('Dot Product', 'Dot Product', 'Dot Product'),
                  ('Multiply', 'Multiply', 'Multiply'),
-                 ('Normalize', 'Normalize', 'Normalize')],
+                 ('Normalize', 'Normalize', 'Normalize'),
+                 ('Subtract', 'Subtract', 'Subtract'),
+                 ('Average', 'Average', 'Average'),
+                 ('Cross Product', 'Cross Product', 'Cross Product'),
+                 ],
         name='', default='Add')
     
     def init(self, context):
         self.inputs.new('NodeSocketVector', 'Vector')
+        self.inputs[-1].default_value = [0.5, 0.5, 0.5]
         self.inputs.new('NodeSocketVector', 'Vector')
+        self.inputs[-1].default_value = [0.5, 0.5, 0.5]
         self.outputs.new('NodeSocketVector', 'Vector')
         self.outputs.new('NodeSocketFloat', 'Value')
 

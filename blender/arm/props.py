@@ -9,6 +9,7 @@ import arm.utils
 import arm.make
 import arm.make_renderer as make_renderer
 import arm.props_renderpath as props_renderpath
+import arm.proxy
 try:
     import barmory
 except ImportError:
@@ -38,10 +39,46 @@ def update_mat_cache(self, context):
     else:
         pass
 
+def proxy_sync_loc(self, context):
+    if context.object == None or context.object.proxy == None:
+        return
+    if context.object.arm_proxy_sync_loc:
+        arm.proxy.sync_location(context.object)
+
+def proxy_sync_rot(self, context):
+    if context.object == None or context.object.proxy == None:
+        return
+    if context.object.arm_proxy_sync_rot:
+        arm.proxy.sync_rotation(context.object)
+
+def proxy_sync_scale(self, context):
+    if context.object == None or context.object.proxy == None:
+        return
+    if context.object.arm_proxy_sync_scale:
+        arm.proxy.sync_scale(context.object)
+
+def proxy_sync_materials(self, context):
+    if context.object == None or context.object.proxy == None:
+        return
+    if context.object.arm_proxy_sync_materials:
+        arm.proxy.sync_materials(context.object)
+
+def proxy_sync_modifiers(self, context):
+    if context.object == None or context.object.proxy == None:
+        return
+    if context.object.arm_proxy_sync_modifiers:
+        arm.proxy.sync_modifiers(context.object)
+
+def proxy_sync_traits(self, context):
+    if context.object == None or context.object.proxy == None:
+        return
+    if context.object.arm_proxy_sync_traits:
+        arm.proxy.sync_traits(context.object)
+
 def init_properties():
     global arm_version
     bpy.types.World.arm_recompile = bpy.props.BoolProperty(name="Recompile", description="Recompile sources on next play", default=True)
-    bpy.types.World.arm_progress = bpy.props.FloatProperty(name="Progress", description="Current build progress", default=100.0, min=0.0, max=100.0, soft_min=0.0, soft_max=100.0, subtype='PERCENTAGE', get=log.get_progress)
+    bpy.types.World.arm_progress = bpy.props.FloatProperty(name="Building", description="Current build progress", default=100.0, min=0.0, max=100.0, soft_min=0.0, soft_max=100.0, subtype='PERCENTAGE', get=log.get_progress)
     bpy.types.World.arm_version = StringProperty(name="Version", description="Armory SDK version", default="")
     bpy.types.World.arm_project_name = StringProperty(name="Name", description="Exported project name", default="")
     bpy.types.World.arm_project_package = StringProperty(name="Package", description="Package name for scripts", default="arm")
@@ -129,9 +166,17 @@ def init_properties():
     bpy.types.Object.arm_spawn = bpy.props.BoolProperty(name="Spawn", description="Auto-add this object when creating scene", default=True)
     bpy.types.Object.arm_mobile = bpy.props.BoolProperty(name="Mobile", description="Object moves during gameplay", default=True)
     bpy.types.Object.arm_soft_body_margin = bpy.props.FloatProperty(name="Soft Body Margin", description="Collision margin", default=0.04)
+    bpy.types.Object.arm_rb_linear_factor = bpy.props.FloatVectorProperty(name="Linear Factor", size=3, description="Set to 0 to lock axis", default=[1,1,1])
+    bpy.types.Object.arm_rb_angular_factor = bpy.props.FloatVectorProperty(name="Angular Factor", size=3, description="Set to 0 to lock axis", default=[1,1,1])
     bpy.types.Object.arm_animation_enabled = bpy.props.BoolProperty(name="Animation", description="Enable skinning & timeline animation", default=True)
     bpy.types.Object.arm_tilesheet = bpy.props.StringProperty(name="Tilesheet", description="Set tilesheet animation", default='')
     bpy.types.Object.arm_tilesheet_action = bpy.props.StringProperty(name="Tilesheet Action", description="Set startup action", default='')
+    bpy.types.Object.arm_proxy_sync_loc = bpy.props.BoolProperty(name="Location", description="Keep location synchronized with proxy object", default=True, update=proxy_sync_loc)
+    bpy.types.Object.arm_proxy_sync_rot = bpy.props.BoolProperty(name="Rotation", description="Keep rotation synchronized with proxy object", default=True, update=proxy_sync_rot)
+    bpy.types.Object.arm_proxy_sync_scale = bpy.props.BoolProperty(name="Scale", description="Keep scale synchronized with proxy object", default=True, update=proxy_sync_scale)
+    bpy.types.Object.arm_proxy_sync_materials = bpy.props.BoolProperty(name="Materials", description="Keep materials synchronized with proxy object", default=True, update=proxy_sync_materials)
+    bpy.types.Object.arm_proxy_sync_modifiers = bpy.props.BoolProperty(name="Modifiers", description="Keep modifiers synchronized with proxy object", default=True, update=proxy_sync_modifiers)
+    bpy.types.Object.arm_proxy_sync_traits = bpy.props.BoolProperty(name="Traits", description="Keep traits synchronized with proxy object", default=True, update=proxy_sync_traits)
     # For speakers
     bpy.types.Speaker.arm_loop = bpy.props.BoolProperty(name="Loop", description="Loop this sound", default=False)
     bpy.types.Speaker.arm_stream = bpy.props.BoolProperty(name="Stream", description="Stream this sound", default=False)
@@ -184,6 +229,10 @@ def init_properties():
     bpy.types.World.arm_voxelgi_occ = bpy.props.FloatProperty(name="Occlussion", description="", default=1.0, update=assets.invalidate_shader_cache)
     bpy.types.World.arm_voxelgi_env = bpy.props.FloatProperty(name="Env Map", description="Contribute light from environment map", default=0.0, update=assets.invalidate_shader_cache)
     bpy.types.World.arm_voxelgi_step = bpy.props.FloatProperty(name="Step", description="Step size", default=1.0, update=assets.invalidate_shader_cache)
+    bpy.types.World.arm_voxelgi_offset_diff = bpy.props.FloatProperty(name="Diffuse Offset", description="Offset size", default=1.0, update=assets.invalidate_shader_cache)
+    bpy.types.World.arm_voxelgi_offset_spec = bpy.props.FloatProperty(name="Specular Offset", description="Step size", default=1.0, update=assets.invalidate_shader_cache)
+    bpy.types.World.arm_voxelgi_offset_shadow = bpy.props.FloatProperty(name="Shadow Offset", description="Step size", default=1.0, update=assets.invalidate_shader_cache)
+    bpy.types.World.arm_voxelgi_offset_refract = bpy.props.FloatProperty(name="Refract Offset", description="Step size", default=1.0, update=assets.invalidate_shader_cache)
     bpy.types.World.arm_voxelgi_range = bpy.props.FloatProperty(name="Range", description="Maximum range", default=1.0, update=assets.invalidate_shader_cache)
     bpy.types.World.arm_sss_width = bpy.props.FloatProperty(name="SSS Width", description="SSS blur strength", default=1.0, update=assets.invalidate_shader_cache)
     bpy.types.World.arm_envtex_name = bpy.props.StringProperty(name="Environment Texture", default='')

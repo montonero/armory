@@ -27,10 +27,12 @@ uniform sampler2D gbuffer1;
 
 #ifdef _VoxelGI
 	//!uniform sampler3D voxels;
-	uniform vec3 eyeSnap;
+	
 #endif
 #ifdef _VoxelAO
 	//!uniform sampler3D voxels;
+#endif
+#ifdef _VoxelGICam
 	uniform vec3 eyeSnap;
 #endif
 
@@ -42,6 +44,9 @@ uniform float envmapStrength;
 	uniform sampler2D senvmapRadiance;
 	uniform sampler2D senvmapBrdf;
 	uniform int envmapNumMipmaps;
+#endif
+#ifdef _EnvCol
+	uniform vec3 backgroundCol;
 #endif
 
 #ifdef _SSAO
@@ -143,6 +148,11 @@ void main() {
 	
 #ifdef _Rad // Indirect specular
 	envl.rgb += prefilteredColor * (f0 * envBRDF.x + envBRDF.y) * 1.5;
+#else
+	#ifdef _EnvCol
+	vec3 f0 = surfaceF0(g1.rgb, metrough.x);
+	envl.rgb += backgroundCol * f0;
+	#endif
 #endif
 
 #ifdef _SSS
